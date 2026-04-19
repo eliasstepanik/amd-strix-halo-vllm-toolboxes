@@ -146,7 +146,7 @@ if _os.path.isdir(_jit_cache) and _jit_cache not in __path__:
             _patch_flash_interface(fa_iface)
 
     # Patch 9: Allow Triton MoE kernels on gfx11xx (Strix Halo)
-    # vLLM recently capped MXFP4 Triton MoE kernels to < (11, 0) which excludes RDNA3 (11.x)
+    # vLLM recently capped MXFP4 Triton MoE kernels to < (11, 0) which excludes RDNA3.5 (11.x)
     for p_triton in [
         Path('vllm/model_executor/layers/fused_moe/experts/gpt_oss_triton_kernels_moe.py'),
         Path('vllm/model_executor/layers/fused_moe/oracle/mxfp4.py')

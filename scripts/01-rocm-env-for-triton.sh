@@ -6,3 +6,6 @@ export VLLM_USE_TRITON_AWQ=1
 # MIOpen's exhaustive kernel search hangs on gfx1151 for some conv shapes
 # (notably vision-encoder conv stems). FAST uses heuristics instead.
 export MIOPEN_FIND_MODE=FAST
+
+# Temporary fix for "PicklingError: Can't pickle <function launcher ...>" inside EngineCore
+export VLLM_DISABLE_COMPILE_CACHE=1
