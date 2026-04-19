@@ -63,19 +63,32 @@ View full benchmarks at: [https://kyuz0.github.io/amd-strix-halo-vllm-toolboxes/
 
 ## 1) Toolbx vs Docker/Podman
 
-The `kyuz0/vllm-therock-gfx1151:latest` image can be used both as: 
+The `kyuz0/vllm-therock-gfx1151` image is available in two channels:
 
-* **Fedora Toolbx (recommended for development):** Toolbx shares your **HOME** and user, so models/configs live on the host. Great for iterating quickly while keeping the host clean. 
+| Tag | Description |
+| :--- | :--- |
+| **`:stable`** | Last verified working build. **Recommended for most users.** |
+| **`:latest`** | Absolute latest build. May contain upstream regressions. |
+
+The image can be used both as:
+
+* **Fedora Toolbx (recommended for development):** Toolbx shares your **HOME** and user, so models/configs live on the host. Great for iterating quickly while keeping the host clean.
 * **Docker/Podman (recommended for deployment/perf):** Use for running vLLM as a service (host networking, IPC tuning, etc.). Always **mount a host directory** for model weights so they stay outside the container.
+
 
 ---
 
 ## 2) Quickstart — Fedora Toolbx
 
-**Recommended:** Use the included `refresh_toolbox.sh` script. It pulls the latest image and creates the toolbox with the correct parameters:
+**Recommended:** Use the included `refresh_toolbox.sh` script. It pulls the image and creates the toolbox with the correct parameters:
 
 ```bash
+# Interactive — prompts you to choose stable (default) or latest
 ./refresh_toolbox.sh
+
+# Or specify directly:
+./refresh_toolbox.sh stable   # verified working build
+./refresh_toolbox.sh latest   # bleeding edge
 ```
 
 > **InfiniBand / RDMA Support:** The script automatically detects if a fast InfiniBand link is active (checks `/dev/infiniband`). If found, it correctly sets up the container to expose these devices, enabling high-performance clustering.
@@ -86,7 +99,7 @@ To manually create a toolbox that exposes the GPU and relaxes seccomp:
 
 ```bash
 toolbox create vllm \
-  --image docker.io/kyuz0/vllm-therock-gfx1151:latest \
+  --image docker.io/kyuz0/vllm-therock-gfx1151:stable \
   -- --device /dev/dri --device /dev/kfd \
   --group-add video --group-add render --security-opt seccomp=unconfined
 ```
@@ -117,7 +130,7 @@ Ubuntu’s toolbox package still breaks GPU access, so use Distrobox instead:
 
 ```bash
 distrobox create -n vllm \
-  --image docker.io/kyuz0/vllm-therock-gfx1151:latest \
+  --image docker.io/kyuz0/vllm-therock-gfx1151:stable \
   --additional-flags "--device /dev/kfd --device /dev/dri --group-add video --group-add render --security-opt seccomp=unconfined"
 
 distrobox enter vllm
