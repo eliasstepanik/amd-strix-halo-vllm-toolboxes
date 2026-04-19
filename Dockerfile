@@ -28,7 +28,9 @@ RUN python -m pip install --upgrade pip wheel packaging "setuptools<80.0.0"
 # 5. Install PyTorch (TheRock Nightly)
 RUN python -m pip install \
   --index-url https://rocm.nightlies.amd.com/v2-staging/gfx1151/ \
-  --pre torch torchaudio torchvision
+  --pre torch torchaudio torchvision && \
+  find /opt/venv -type f -name "*.so" -exec strip -s {} + 2>/dev/null || true && \
+  rm -rf /root/.cache/pip
 
 WORKDIR /opt
 
@@ -53,7 +55,9 @@ RUN git clone https://github.com/ROCm/flash-attention.git && \
     cd /opt/flash-attention && \
     python -c "import re; f=open('setup.py','r'); t=f.read(); f.close(); t=re.sub(r'subprocess\.run\([\s\S]*?third_party/aiter[\s\S]*?check=True,\s*\)', 'pass # patched', t); f=open('setup.py','w'); f.write(t)" && \
     pip install --no-build-isolation --no-deps . && \
-    cd /opt && rm -rf /opt/flash-attention /opt/patch_aiter_headers.py
+    cd /opt && rm -rf /opt/flash-attention /opt/patch_aiter_headers.py && \
+    find /opt/venv -type f -name "*.so" -exec strip -s {} + 2>/dev/null || true && \
+    rm -rf /root/.cache/pip
 
 # Fix Fedora lib vs lib64 split: setup.py install writes to lib/, pip to lib64/.
 # flash-attention's find_packages() may install a partial aiter copy into lib/.
@@ -102,7 +106,10 @@ RUN export HIP_DEVICE_LIB_PATH=$(find /opt/rocm -type d -name bitcode -print -qu
   echo "Compiling with Bitcode: $HIP_DEVICE_LIB_PATH" && \
   export CMAKE_ARGS="-DROCM_PATH=/opt/rocm -DHIP_PATH=/opt/rocm -DAMDGPU_TARGETS=gfx1151 -DHIP_ARCHITECTURES=gfx1151" && \   
   python -m pip wheel --no-build-isolation --no-deps -w /tmp/dist -v . && \
-  python -m pip install /tmp/dist/*.whl
+  python -m pip install /tmp/dist/*.whl && \
+  rm -rf /tmp/dist && \
+  find /opt/venv -type f -name "*.so" -exec strip -s {} + 2>/dev/null || true && \
+  rm -rf /root/.cache/pip
 
 RUN python -m pip install ray
 
@@ -124,7 +131,9 @@ RUN cmake -S . \
   -DCMAKE_CXX_COMPILER=/opt/rocm/llvm/bin/clang++ \
   && \
   make -j$(nproc) && \
-  python -m pip install --no-cache-dir . --no-build-isolation --no-deps
+  python -m pip install --no-cache-dir . --no-build-isolation --no-deps && \
+  find /opt/venv -type f -name "*.so" -exec strip -s {} + 2>/dev/null || true && \
+  rm -rf /root/.cache/pip
 
 # 8. Final Cleanup & Runtime
 WORKDIR /opt
