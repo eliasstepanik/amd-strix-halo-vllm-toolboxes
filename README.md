@@ -22,6 +22,17 @@ This repository is part of the **[Strix Halo AI Toolboxes](https://strix-halo-to
 
 A big thank you to the [paudley/ai-notes](https://github.com/paudley/ai-notes) repository and its meticulously documented `strix-halo` build pipeline. I have directly integrated and adapted their research to stabilize vLLM and Flash-Attention for Strix Halo. Specifically, this toolbox leverages their Triton `AttrsDescriptor` compilation patches and the manual `aiter` compilation strategy that bridges CDNA kernels seamlessly over to RDNA scalar C++ routines—enabling full AITER custom op acceleration (MoE, Attention, RMSNorm) out-of-the-box.
 
+### 🧩 AITER on Strix Halo Support Status
+
+This toolbox supports running **AITER Flash Attention** on Strix Halo (gfx1151). Normally, vLLM crashes on RDNA APUs if `VLLM_ROCM_USE_AITER=1` is enabled, because AITER attempts to JIT-compile CDNA-specific MoE (Mixture of Experts) and CustomOps assembly instructions that lack RDNA hardware support.
+
+To bypass this limitation, `scripts/patch_strix.py` applies a few APU-specific guards (building on the work from `ai-notes` linked above):
+* **Patch 2 (`vllm/_aiter_ops.py`)**: Intercepts the MoE gate (`is_fused_moe_enabled()`) forcing it to disable AITER MoE and Linear FP8 on `gfx1x` architectures.
+* **Patch 3.5 (`vllm/model_executor/layers/fused_moe/oracle/unquantized.py`)**: Blocks the `VLLM_ROCM_USE_AITER_MOE` environment variable from forcing a JIT compile override.
+* **Patch 5 (`vllm/platforms/rocm.py`)**: Bypasses the RMSNorm custom op registration on `gfx1x` to prevent CUDA Graph capture crashes during model initialization.
+
+Because of these patches, when `ROCm` Attention is selected in the launcher, vLLM routes Attention to AITER (using the `ds_swizzle` RDNA header fallbacks injected via `scripts/patch_aiter_headers.py`), while safely falling back to Triton for MoE matrices and Torch/Triton for RMSNorm.
+
 ### ❤️ Support
 
 This is a hobby project maintained in my spare time. If you find these toolboxes and tutorials useful, you can **[buy me a coffee](https://buymeacoffee.com/dcapitella)** to support the work! ☕

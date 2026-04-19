@@ -41,27 +41,62 @@ def patch_vllm():
     p_aiter = Path('vllm/_aiter_ops.py')
     if p_aiter.exists():
         txt = p_aiter.read_text()
+        
+        # Ensure on_gfx1x is available globally for our patches below
+        if "from vllm.platforms.rocm import on_gfx1x" not in txt:
+            txt = txt.replace("from vllm.platforms import current_platform", 
+                              "from vllm.platforms import current_platform\nfrom vllm.platforms.rocm import on_gfx1x")
+
         # Extend is_aiter_found_and_supported
-        if "or current_platform.on_gfx1x()" not in txt:
-            txt = txt.replace("current_platform.on_gfx9()", "(current_platform.on_gfx9() or current_platform.on_gfx1x())")
+        if "or on_gfx1x()" not in txt:
+            txt = txt.replace("import on_mi3xx", "import on_mi3xx, on_gfx1x")
+            txt = txt.replace("on_mi3xx()", "(on_mi3xx() or on_gfx1x())")
+            
         # Disable FP8 linear
         if "is_linear_fp8_enabled" in txt:
             txt = re.sub(
                 r'(def is_linear_fp8_enabled.*?:\n\s+return) (.*?)\n', 
-                r'\1 \2 and not current_platform.on_gfx1x()\n', 
+                r'\1 False\n', 
                 txt, count=1, flags=re.DOTALL
             )
+            
+        # Disable AITER Fused MoE on gfx1x (due to hundreds of CDNA-specific dpp_mov assembly conflicts)
+        if "is_fused_moe_enabled" in txt:
+            txt = re.sub(
+                r'(def is_fused_moe_enabled.*?:\n\s+return) (cls\._AITER_ENABLED and cls\._FMOE_ENABLED)\n', 
+                r'\1 \2 and not getattr(on_gfx1x, "__call__", lambda: False)()\n', 
+                txt, count=1, flags=re.DOTALL
+            )
+            
         p_aiter.write_text(txt)
-        print(" -> Patched vllm/_aiter_ops.py (gfx1x support & FP8 linear disabled)")
+        print(" -> Patched vllm/_aiter_ops.py (gfx1x support, FP8 linear empty, MoE disabled)")
 
     # Patch 3: rocm_aiter_fa.py
     p_fa = Path('vllm/v1/attention/backends/rocm_aiter_fa.py')
     if p_fa.exists():
         txt = p_fa.read_text()
-        if "or current_platform.on_gfx1x()" not in txt:
-            txt = txt.replace("current_platform.on_gfx9()", "(current_platform.on_gfx9() or current_platform.on_gfx1x())")
-        p_fa.write_text(txt)
-        print(" -> Patched vllm/v1/attention/backends/rocm_aiter_fa.py (gfx1x support)")
+        if "on_gfx1x" not in txt:
+            txt = txt.replace("from vllm.platforms.rocm import on_mi3xx", "from vllm.platforms.rocm import on_mi3xx, on_gfx1x")
+            txt = txt.replace("on_mi3xx()", "(on_mi3xx() or on_gfx1x())")
+            p_fa.write_text(txt)
+            print(" -> Patched vllm/v1/attention/backends/rocm_aiter_fa.py (gfx1x support)")
+
+    # Patch 3.5: unquantized.py (Hard-block AITER MoE forced override on gfx1x)
+    p_unquant = Path('vllm/model_executor/layers/fused_moe/oracle/unquantized.py')
+    if p_unquant.exists():
+        txt = p_unquant.read_text()
+        if "from vllm.platforms.rocm import on_gfx1x" not in txt:
+            txt = txt.replace(
+                'if envs.is_set("VLLM_ROCM_USE_AITER")',
+                'from vllm.platforms.rocm import on_gfx1x\n    if envs.is_set("VLLM_ROCM_USE_AITER")'
+            )
+            txt = txt.replace(
+                'if not envs.VLLM_ROCM_USE_AITER or not envs.VLLM_ROCM_USE_AITER_MOE:',
+                'if getattr(on_gfx1x, "__call__", lambda: False)() or not envs.VLLM_ROCM_USE_AITER or not envs.VLLM_ROCM_USE_AITER_MOE:'
+            )
+            p_unquant.write_text(txt)
+            print(" -> Patched unquantized.py (Blocked AITER MoE override on gfx1x)")
+
 
     # Patch 5: custom_ops RMSNorm block on gfx1x (Full CUDA Graph capture)
     p_rocm = Path('vllm/platforms/rocm.py')
@@ -75,7 +110,20 @@ def patch_vllm():
         p_rocm.write_text(txt)
         print(" -> Patched vllm/platforms/rocm.py (custom_ops rms_norm bypassed on gfx1x)")
 
-    # Patch 6: Triton backend AttrsDescriptor repr
+    # Patch 6: vllm/compilation/passes/fusion/rocm_aiter_fusion.py (duplicate pattern bypass)
+    p_fusion = Path('vllm/compilation/passes/fusion/rocm_aiter_fusion.py')
+    if p_fusion.exists():
+        txt = p_fusion.read_text()
+        if "skip_duplicates=True" not in txt:
+            txt = re.sub(
+                r"(pm\.register_replacement\s*\((?:(?!\bpm\.register_replacement\b).)*?)pm_pass(\s*[\),])", 
+                r"\1pm_pass, skip_duplicates=True\2", 
+                txt, flags=re.DOTALL
+            )
+            p_fusion.write_text(txt)
+            print(" -> Patched vllm/compilation/passes/fusion/rocm_aiter_fusion.py (skip_duplicates)")
+
+    # Patch 7: Triton backend AttrsDescriptor repr
     for sp in site.getsitepackages():
         triton_compiler = Path(sp) / "triton/backends/compiler.py"
         if triton_compiler.exists():

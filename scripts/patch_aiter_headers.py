@@ -298,13 +298,10 @@ HIP_REDUCE = """// SPDX-License-Identifier: MIT
 #include \"hip_compat.h\"
 #include <rocprim/rocprim.hpp>
 
-// Detect RDNA 3/3.5 (gfx11xx) which lack DPP row broadcast instructions
-// (row_bcast:15 = 0x142, row_bcast:31 = 0x143).
-// On these architectures we use ds_swizzle (warp_swizzle) as the equivalent,
-// matching the approach used by rocprim's own warp_reduce_dpp.hpp.
-#if defined(__gfx1100__) || defined(__gfx1101__) || defined(__gfx1102__) || \\
-    defined(__gfx1103__) || defined(__gfx1150__) || defined(__gfx1151__) || \\
-    defined(__gfx1152__)
+// Force RDNA 3/3.5 fallback. This toolbox is strictly for Strix Halo (gfx1151).
+// Using hardware detection macros fails during early template instantiation
+// because PyTorch sometimes invokes clang++ directly which skips hipcc wrappers.
+#ifndef AITER_RDNA_NO_DPP_BCAST
 #define AITER_RDNA_NO_DPP_BCAST 1
 #endif
 
