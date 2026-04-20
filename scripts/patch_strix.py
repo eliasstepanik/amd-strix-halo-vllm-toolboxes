@@ -60,6 +60,14 @@ def patch_vllm():
                 txt, count=1, flags=re.DOTALL
             )
             
+        # Disable AITER RMSNorm on gfx1x (CUDA Graph hang)
+        if "is_rmsnorm_enabled" in txt:
+            txt = re.sub(
+                r'(def is_rmsnorm_enabled.*?:\n\s+return) (cls\._AITER_ENABLED and cls\._RMSNORM_ENABLED)\n', 
+                r'\1 \2 and not getattr(on_gfx1x, "__call__", lambda: False)()\n', 
+                txt, count=1, flags=re.DOTALL
+            )
+            
         # Disable AITER Fused MoE on gfx1x (due to hundreds of CDNA-specific dpp_mov assembly conflicts)
         if "is_fused_moe_enabled" in txt:
             txt = re.sub(
@@ -102,11 +110,23 @@ def patch_vllm():
     p_rocm = Path('vllm/platforms/rocm.py')
     if p_rocm.exists():
         txt = p_rocm.read_text()
-        if "is_aiter_found_and_supported() and not self.on_gfx1x():" not in txt:
+        
+        # Legacy vLLM < 0.19 fallback
+        if "if is_aiter_found_and_supported():\n            custom_ops.append(\"+rms_norm\")" in txt:
             txt = txt.replace(
                 "if is_aiter_found_and_supported():\n            custom_ops.append(\"+rms_norm\")",
                 "if is_aiter_found_and_supported() and not self.on_gfx1x():\n            custom_ops.append(\"+rms_norm\")"
             )
+        
+        # Modern vLLM 0.19+ struct (compilation_config.custom_ops)
+        elif "compilation_config.custom_ops.append(\"+rms_norm\")" in txt:
+            if "if not getattr(self, \"on_gfx1x\", lambda: False)():" not in txt:
+                txt = re.sub(
+                    r'(\s+)compilation_config\.custom_ops\.append\("\+rms_norm"\)',
+                    r'\1if not getattr(self, "on_gfx1x", lambda: False)():\n\1    compilation_config.custom_ops.append("+rms_norm")',
+                    txt
+                )
+                
         p_rocm.write_text(txt)
         print(" -> Patched vllm/platforms/rocm.py (custom_ops rms_norm bypassed on gfx1x)")
 

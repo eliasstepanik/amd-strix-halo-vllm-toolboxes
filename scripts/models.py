@@ -48,13 +48,20 @@ MODEL_TABLE = {
         "env": {"VLLM_USE_TRITON_AWQ": "1"} # Fixes "Unsupported Hardware" error
     },
 
+    "cyankiwi/Qwen3.5-122B-A10B-AWQ-8bit": {
+        "trust_remote": True,
+        "valid_tp": [2], # Too big for single GPU
+        "enforce_eager": True, 
+        "env": {"VLLM_USE_TRITON_AWQ": "1"} # Fixes "Unsupported Hardware" error
+    },
+
     "zai-org/GLM-4.7-Flash": {
         "trust_remote": True,
         "enforce_eager": False, 
         "valid_tp": [1, 2]
     },
 
-    "mratsim/MiniMax-M2.5-BF16-INT4-AWQ": {
+    "cyankiwi/MiniMax-M2.7-AWQ-4bit": {
         "trust_remote": True,
         "valid_tp": [2],
         "enforce_eager": False,
