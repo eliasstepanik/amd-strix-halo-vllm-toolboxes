@@ -42,8 +42,8 @@ MODEL_TABLE = {
     "Qwen/Qwen3.6-35B-A3B": {
         "trust_remote": True,
         "valid_tp": [1],
-        "max_num_seqs": "16",
-        "max_tokens": "8192"
+        "max_num_seqs": "64",
+        "max_tokens": "16384"
     },
 
     "cyankiwi/Qwen3.6-35B-A3B-AWQ-4bit": {
