@@ -36,7 +36,7 @@ RUN python -m pip install \
 WORKDIR /opt
 
 COPY scripts/patch_aiter_headers.py /opt/patch_aiter_headers.py
-RUN python -m pip install --upgrade cmake ninja packaging wheel numpy "setuptools-scm>=8" "setuptools<80.0.0" scikit-build-core pybind11 numba scipy
+RUN python -m pip install --upgrade cmake ninja packaging wheel numpy "setuptools-scm>=8" "setuptools<80.0.0" setuptools-rust scikit-build-core pybind11 numba scipy
 
 
 # Flash-Attention & AITER
