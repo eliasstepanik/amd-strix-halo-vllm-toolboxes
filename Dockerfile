@@ -104,13 +104,13 @@ ENV CC="/opt/rocm/llvm/bin/clang"
 ENV CXX="/opt/rocm/llvm/bin/clang++"
 
 # --- FIX FOR MWAITXINTRIN.H CLANG HEADER CONFLICT ---
-ENV CFLAGS="-march=gfx1151 -Wno-#pragma-messages"
-ENV CXXFLAGS="-march=gfx1151 -Wno-#pragma-messages"
+ENV CFLAGS="-Wno-#pragma-messages"
+ENV CXXFLAGS="-Wno-#pragma-messages"
 ENV LDFLAGS="-fno-strict-aliasing"
 
 RUN export HIP_DEVICE_LIB_PATH=$(find /opt/rocm -type d -name bitcode -print -quit) && \
   echo "Compiling with Bitcode: $HIP_DEVICE_LIB_PATH" && \
-  export CMAKE_ARGS="-DROCM_PATH=/opt/rocm -DHIP_PATH=/opt/rocm -DAMDGPU_TARGETS=gfx1151 -DHIP_ARCHITECTURES=gfx1151 -DCMAKE_CXX_FLAGS=-Wno-error" && \   
+  export CMAKE_ARGS="-DROCM_PATH=/opt/rocm -DHIP_PATH=/opt/rocm -DAMDGPU_TARGETS=gfx1151 -DHIP_ARCHITECTURES=gfx1151" && \   
   python -m pip wheel --no-build-isolation --no-deps -w /tmp/dist -v . && \
   python -m pip install /tmp/dist/*.whl && \
   rm -rf /tmp/dist && \
