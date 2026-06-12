@@ -104,8 +104,8 @@ ENV CC="/opt/rocm/llvm/bin/clang"
 ENV CXX="/opt/rocm/llvm/bin/clang++"
 
 # --- FIX FOR MWAITXINTRIN.H CLANG HEADER CONFLICT ---
-ENV CFLAGS="-Wno-#pragma-messages -Wno-error"
-ENV CXXFLAGS="-Wno-#pragma-messages -Wno-error"
+ENV CFLAGS="-march=gfx1151 -Wno-#pragma-messages"
+ENV CXXFLAGS="-march=gfx1151 -Wno-#pragma-messages"
 ENV LDFLAGS="-fno-strict-aliasing"
 
 RUN export HIP_DEVICE_LIB_PATH=$(find /opt/rocm -type d -name bitcode -print -quit) && \
