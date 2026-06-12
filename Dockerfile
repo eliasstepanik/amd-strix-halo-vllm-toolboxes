@@ -113,6 +113,7 @@ RUN export HIP_DEVICE_LIB_PATH=$(find /opt/rocm -type d -name bitcode -print -qu
   export CMAKE_ARGS="-DROCM_PATH=/opt/rocm -DHIP_PATH=/opt/rocm -DAMDGPU_TARGETS=gfx1151 -DHIP_ARCHITECTURES=gfx1151" && \   
   python -m pip wheel --no-build-isolation --no-deps -w /tmp/dist -v . && \
   python -m pip install /tmp/dist/*.whl && \
+  python -m pip install --no-cache-dir . && \
   rm -rf /tmp/dist && \
   find /opt/venv -type f -name "*.so" -exec strip -s {} + 2>/dev/null || true && \
   rm -rf /root/.cache/pip
